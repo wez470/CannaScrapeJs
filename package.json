@@ -1,0 +1,11 @@
+{
+  "name": "canna-scrape-node",
+  "version": "1.0.0",
+  "description": "Scraping Cannabis Sites",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Weston Carlson",
+  "license": "ISC"
+}
