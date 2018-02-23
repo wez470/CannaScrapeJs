@@ -1,9 +1,42 @@
+const axios = require('axios');
 
+var scrape = function(searchStrain) {
+    var escapedSearch = searchStrain.replace(/ /g, '+');
+    var promises = []
+    promises.push(axios.get('https://www.leafly.com/search?q=' + escapedSearch + '&typefilter=strain')
+        .then(function (response) {
+            console.log("Leafly response handler");
+            return scrapeLeafly(response);
+        })
+        .catch(function (error) {
+            console.log(error);
+        }));
+    promises.push(axios.get('https://www.leafly.com/search?q=' + escapedSearch + '&typefilter=strain')
+        .then(function (response) {
+            console.log("Allbud response handler");
+            return scrapeAllbud(response);
+        })
+        .catch(function (error) {
+            console.log(error);
+        }));
+    Promise.all(promises).then(function (values) {
+        var leaflyRevs = values[0];
+        var allbudRevs = values[1];
 
-var scrape = function() {
-    var searchStrain = 'cherry kush';
-    leaflyRevs = scrapeLeafly(searchStrain);
-    allbudRevs = scrapeAllbud(searchStrain);
+        var responseData = getResponseData(leaflyRevs, allbudRevs);
+        console.log(responseData);
+    });
+}
+
+var scrapeLeafly = function(searchStrain) {
+    return {'cherry kush': {rating: 4.4, ratings: 100}, 'cherry mountain': {rating: 3, ratings: 9}};
+}
+
+var scrapeAllbud = function(searchStrain) {
+    return {'cherry kush': {rating: 4.0, ratings: 100}, 'cherry pie': {rating: 5, ratings: 27}};
+}
+
+var getResponseData = function(leaflyRevs, allbudRevs) {
     var revs = {}
     for (strain in leaflyRevs) {
         if (!(strain in revs)) {
@@ -29,15 +62,7 @@ var scrape = function() {
             revs[strain].metachronic = { rating: avgRating, ratings: totalRatings };
         }
     }
-    console.log(revs);
+    return revs;
 }
 
-var scrapeLeafly = function(searchStrain) {
-    return {'cherry kush': {rating: 4.4, ratings: 100}, 'cherry mountain': {rating: 3, ratings: 9}};
-}
-
-var scrapeAllbud = function(searchStrain) {
-    return {'cherry kush': {rating: 4.0, ratings: 100}, 'cherry pie': {rating: 5, ratings: 27}};
-}
-
-scrape();
+scrape('cherry kush');
