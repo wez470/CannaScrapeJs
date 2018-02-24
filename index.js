@@ -4,13 +4,13 @@ const cheerio = require('cheerio');
 var scrape = function(searchStrain) {
     var escapedSearch = searchStrain.replace(/ /g, '+');
     var promises = []
-    // promises.push(axios.get('https://www.leafly.com/search?q=' + escapedSearch + '&typefilter=strain')
-    //     .then(function (response) {
-    //         return scrapeLeafly(response.data, escapedSearch);
-    //     })
-    //     .catch(function (error) {
-    //         console.log(error);
-    //     }));
+    promises.push(axios.get('https://www.leafly.com/search?q=' + escapedSearch + '&typefilter=strain')
+        .then(function (response) {
+            return scrapeLeafly(response.data, escapedSearch);
+        })
+        .catch(function (error) {
+            console.log(error);
+        }));
     promises.push(axios.get('https://www.allbud.com/marijuana-strains/search?q=' + escapedSearch)
         .then(function (response) {
             return scrapeAllbud(response.data, escapedSearch);
@@ -19,8 +19,8 @@ var scrape = function(searchStrain) {
             console.log(error);
         }));
     Promise.all(promises).then(function (values) {
-        var leaflyRevs = {};
-        var allbudRevs = values[0]; // TODO: change to 1
+        var leaflyRevs = values[0];
+        var allbudRevs = values[1];
 
         var responseData = getResponseData(leaflyRevs, allbudRevs);
         console.log(responseData);
@@ -28,7 +28,41 @@ var scrape = function(searchStrain) {
 }
 
 var scrapeLeafly = function(response, escapedSearch) {
-    return {'cherry kush': {rating: 4.4, ratings: 100}, 'cherry mountain': {rating: 3, ratings: 9}};
+    var $ = cheerio.load(response);
+    var names = [];
+    var ratingList = [];
+    var numRatingsList = [];
+    var urls = [];
+    $('li .padding-rowItem a').each(function (i, elem) {
+        urls.push('https://www.leafly.com' + $(this).attr('href').trim());
+    });
+    for (url of urls) {
+        var splitUrl = url.split('/');
+        var name = splitUrl[splitUrl.length - 1].replace(/-/g, ' ');
+        names.push(name);
+    }
+    $('li .padding-rowItem .color--light').each(function (i, elem) {
+        numRatingsList.push($(this).text().trim().substr(1).split(' ')[0]);
+    });
+    $('li .padding-rowItem img').each(function (i, elem) {
+        ratingList.push($(this).attr('src').split('/')[2]);
+    });
+
+    var strainData = {}
+    for (var i = 0; i < names.length; i++) {
+        var validStrain = true;
+        for (term of escapedSearch.split('+')) {
+            if (!names[i].includes(term)) {
+                validStrain = false;
+                break;
+            }
+        }
+
+        if (validStrain) {
+            strainData[names[i]] = {rating: ratingList[i], ratings: numRatingsList[i], url: urls[i]};
+        }
+    }
+    return strainData;
 }
 
 var scrapeAllbud = function(response, escapedSearch) {
@@ -99,8 +133,8 @@ var getResponseData = function(leaflyRevs, allbudRevs) {
             var rating = 0;
             var totalRatings = 0;
             for (source in revs[strain]) {
-                rating += revs[strain][source].rating * revs[strain][source].ratings;
-                totalRatings += revs[strain][source].ratings;
+                rating += Number(revs[strain][source].rating) * Number(revs[strain][source].ratings);
+                totalRatings += Number(revs[strain][source].ratings);
             }
             var avgRating = rating / totalRatings;
             revs[strain].metachronic = { rating: avgRating, ratings: totalRatings };
