@@ -58,10 +58,10 @@ var scrapeLeafly = function(response, escapedSearch) {
         names.push(name);
     }
     $('li .padding-rowItem .color--light').each(function (i, elem) {
-        numRatingsList.push($(this).text().trim().substr(1).split(' ')[0]);
+        numRatingsList.push(Number($(this).text().trim().substr(1).split(' ')[0]));
     });
     $('li .padding-rowItem img').each(function (i, elem) {
-        ratingList.push($(this).attr('src').split('/')[2]);
+        ratingList.push(Number($(this).attr('src').split('/')[2]));
     });
 
     var strainData = {};
@@ -126,7 +126,7 @@ var scrapeAllbudReview = function (response, strainUrl) {
     var splitUrl = strainUrl.split('/');
     var name = splitUrl[splitUrl.length - 1].replace(/-/g, ' ');
     var strainData = {};
-    strainData[name] = {rating: strainRating, ratings: numRatings, url: strainUrl};
+    strainData[name] = {rating: Number(strainRating), ratings: Number(numRatings), url: strainUrl};
     return strainData;
 };
 
@@ -149,8 +149,8 @@ var getResponseData = function(leaflyRevs, allbudRevs) {
             var rating = 0;
             var totalRatings = 0;
             for (var source in revs[strain]) {
-                rating += Number(revs[strain][source].rating) * Number(revs[strain][source].ratings);
-                totalRatings += Number(revs[strain][source].ratings);
+                rating += revs[strain][source].rating * revs[strain][source].ratings;
+                totalRatings += revs[strain][source].ratings;
             }
             var avgRating = rating / totalRatings;
             revs[strain].metachronic = { rating: avgRating, ratings: totalRatings };
