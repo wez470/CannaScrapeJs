@@ -1,9 +1,25 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 
+exports.handler = (event, context, callback) => {
+    const done = (err, res) => callback(null, {
+        statusCode: err ? '400' : '200',
+        body: err ? err.message : JSON.stringify(res),
+        headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+        },
+    });
+    
+    var strain = event.queryStringParameters.strain;
+    scrape(strain).then(function (response) {
+        done(null, response);
+    });
+};
+
 var scrape = function(searchStrain) {
     var escapedSearch = searchStrain.replace(/ /g, '+');
-    var promises = []
+    var promises = [];
     promises.push(axios.get('https://www.leafly.com/search?q=' + escapedSearch + '&typefilter=strain')
         .then(function (response) {
             return scrapeLeafly(response.data, escapedSearch);
@@ -18,14 +34,14 @@ var scrape = function(searchStrain) {
         .catch(function (error) {
             console.log(error);
         }));
-    Promise.all(promises).then(function (values) {
+    return Promise.all(promises).then(function (values) {
         var leaflyRevs = values[0];
         var allbudRevs = values[1];
 
         var responseData = getResponseData(leaflyRevs, allbudRevs);
-        console.log(responseData);
+        return responseData;
     });
-}
+};
 
 var scrapeLeafly = function(response, escapedSearch) {
     var $ = cheerio.load(response);
@@ -36,7 +52,7 @@ var scrapeLeafly = function(response, escapedSearch) {
     $('li .padding-rowItem a').each(function (i, elem) {
         urls.push('https://www.leafly.com' + $(this).attr('href').trim());
     });
-    for (url of urls) {
+    for (var url of urls) {
         var splitUrl = url.split('/');
         var name = splitUrl[splitUrl.length - 1].replace(/-/g, ' ');
         names.push(name);
@@ -48,10 +64,10 @@ var scrapeLeafly = function(response, escapedSearch) {
         ratingList.push($(this).attr('src').split('/')[2]);
     });
 
-    var strainData = {}
+    var strainData = {};
     for (var i = 0; i < names.length; i++) {
         var validStrain = true;
-        for (term of escapedSearch.split('+')) {
+        for (var term of escapedSearch.split('+')) {
             if (!names[i].includes(term)) {
                 validStrain = false;
                 break;
@@ -63,26 +79,26 @@ var scrapeLeafly = function(response, escapedSearch) {
         }
     }
     return strainData;
-}
+};
 
 var scrapeAllbud = function(response, escapedSearch) {
-    var strainUrls = []
+    var strainUrls = [];
     var $ = cheerio.load(response);
     $('#search-results').find('.object-title a').each(function (index, element) {
         strainUrls.push($(element).attr('href'));
     });
     strainUrls = strainUrls.filter(function (url) {
-        for (term of escapedSearch.split('+')) {
+        for (var term of escapedSearch.split('+')) {
             if (!url.includes(term)) {
                 return false;
             }
         }
         return true;
-    })
+    });
 
-    promises = []
-    for (strainUrl of strainUrls) {
-        var url = 'https://www.allbud.com' + strainUrl
+    var promises = [];
+    for (var strainUrl of strainUrls) {
+        var url = 'https://www.allbud.com' + strainUrl;
         promises.push(axios.get(url)
             .then(function (res) {
                 return scrapeAllbudReview(res.data, res.config.url);
@@ -93,7 +109,7 @@ var scrapeAllbud = function(response, escapedSearch) {
     }
 
     return Promise.all(promises).then(function (values) {
-        strainData = {}
+        var strainData = {};
         values.forEach(function (currData) {
             for (var strain in currData) {
                 strainData[strain] = currData[strain];
@@ -101,7 +117,7 @@ var scrapeAllbud = function(response, escapedSearch) {
         });
         return strainData;
     });
-}
+};
 
 var scrapeAllbudReview = function (response, strainUrl) {
     var $ = cheerio.load(response); 
@@ -109,30 +125,30 @@ var scrapeAllbudReview = function (response, strainUrl) {
     var numRatings = $('#product-rating-votes').first().text().trim();
     var splitUrl = strainUrl.split('/');
     var name = splitUrl[splitUrl.length - 1].replace(/-/g, ' ');
-    var strainData = {}
+    var strainData = {};
     strainData[name] = {rating: strainRating, ratings: numRatings, url: strainUrl};
     return strainData;
-}
+};
 
 var getResponseData = function(leaflyRevs, allbudRevs) {
-    var revs = {}
-    for (strain in leaflyRevs) {
+    var revs = {};
+    for (var strain in leaflyRevs) {
         if (!(strain in revs)) {
             revs[strain] = {};
         }
         revs[strain].leafly = leaflyRevs[strain];
     }
-    for (strain in allbudRevs) {
+    for (var strain in allbudRevs) {
         if (!(strain in revs)) {
             revs[strain] = {};
         }
         revs[strain].allbud = allbudRevs[strain];
     }
-    for (strain in revs) {
+    for (var strain in revs) {
         if (Object.keys(revs[strain]).length > 1) {
             var rating = 0;
             var totalRatings = 0;
-            for (source in revs[strain]) {
+            for (var source in revs[strain]) {
                 rating += Number(revs[strain][source].rating) * Number(revs[strain][source].ratings);
                 totalRatings += Number(revs[strain][source].ratings);
             }
@@ -141,6 +157,4 @@ var getResponseData = function(leaflyRevs, allbudRevs) {
         }
     }
     return revs;
-}
-
-scrape('cherry kush');
+};
