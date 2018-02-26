@@ -1,20 +1,28 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 
+var DOMAINS = ['https://meta-chronic.com', 'https://weed-exchange.firebaseapp.com']
+
 exports.handler = (event, context, callback) => {
-    const done = (err, res) => callback(null, {
+    console.log(event);
+    const done = (err, res, origin) => callback(null, {
         statusCode: err ? '400' : '200',
         body: err ? err.message : JSON.stringify(res),
         headers: {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            'Access-Control-Allow-Origin': origin
         },
     });
     
-    var strain = event.queryStringParameters.strain;
-    scrape(strain).then(function (response) {
-        done(null, response);
-    });
+    if (DOMAINS.indexOf(event.headers.origin) >= 0) {
+        var strain = event.queryStringParameters.strain;
+        scrape(strain).then(function (response) {
+            done(null, response, event.headers.origin);
+        });
+    }
+    else {
+        done({message: 'No access for domain'}, null, '');
+    }
 };
 
 var scrape = function(searchStrain) {
