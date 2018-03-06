@@ -1,23 +1,44 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
+const Memcached = require('memcached-elasticache');
+const memcached = new Memcached('metachronicmemcached.osck8f.cfg.use1.cache.amazonaws.com:11211');
 
 var DOMAINS = ['https://meta-chronic.com', 'https://weed-exchange.firebaseapp.com']
 
 exports.handler = (event, context, callback) => {
     console.log(event);
+    context.callbackWaitsForEmptyEventLoop = false;
+    var escapedSearch = event.queryStringParameters.strain.replace(/ /g, '+');
+    
     const done = (err, res, origin) => callback(null, {
         statusCode: err ? '400' : '200',
-        body: err ? err.message : JSON.stringify(res),
+        body: err ? err.message : res,
         headers: {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': origin
         },
     });
-    
+
     if (DOMAINS.indexOf(event.headers.origin) >= 0) {
-        var strain = event.queryStringParameters.strain;
-        scrape(strain).then(function (response) {
-            done(null, response, event.headers.origin);
+        memcached.get(escapedSearch, function (err, data) {
+            if (typeof err !== 'undefined') {
+                console.log(err);
+            }
+
+            if (typeof data !== 'undefined') {
+                done(null, data, event.headers.origin)
+            }
+
+            scrape(escapedSearch).then(function (response) {
+                var stringifiedResponse = JSON.stringify(response);
+                memcached.set(escapedSearch, stringifiedResponse, 3600 * 48, function (err) {
+                    if (typeof err !== 'undefined') {
+                        console.log(err);
+                    }
+                    done(null, stringifiedResponse, event.headers.origin);
+                });
+                done(null, stringifiedResponse, event.headers.origin);
+            });
         });
     }
     else {
@@ -25,8 +46,7 @@ exports.handler = (event, context, callback) => {
     }
 };
 
-var scrape = function(searchStrain) {
-    var escapedSearch = searchStrain.replace(/ /g, '+');
+var scrape = function(escapedSearch) {
     var promises = [];
     promises.push(axios.get('https://www.leafly.com/search?q=' + escapedSearch + '&typefilter=strain')
         .then(function (response) {
