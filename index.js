@@ -21,8 +21,7 @@ exports.handler = (event, context, callback) => {
     });
 
     if (DOMAINS.indexOf(event.headers.origin) >= 0) {
-       // memcached.get(escapedSearch, function (err, data) {
-            var err, data;
+       memcached.get(escapedSearch, function (err, data) {
             if (typeof err !== 'undefined') {
                 console.log(err);
             }
@@ -40,15 +39,15 @@ exports.handler = (event, context, callback) => {
                 scrape(escapedSearch).then(function (response) {
                     console.log("Scraped response", response);
                     var stringifiedResponse = JSON.stringify(response);
-                 //   memcached.set(escapedSearch, stringifiedResponse, 3600 * 48, function (err) {
+                   memcached.set(escapedSearch, stringifiedResponse, 3600 * 48, function (err) {
                         if (typeof err !== 'undefined') {
                             console.log(err);
                         }
                         done(null, stringifiedResponse, event.headers.origin);
-                 //   });
+                   });
                 });
             }
-     //   });
+       });
     }
     else {
         done({message: 'No access for domain'}, null, '');
