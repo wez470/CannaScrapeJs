@@ -160,8 +160,7 @@ var scrapeAllbudReview = function (response, strainUrl) {
     var $ = cheerio.load(response); 
     var strainRating = $('.rating-num').first().text().trim();
     var numRatings = $('#product-rating-votes').first().text().trim();
-    var splitUrl = strainUrl.split('/');
-    var name = splitUrl[splitUrl.length - 1].replace(/-/g, ' ');
+    var name = $('.col-xs-12 h1').first().text().trim().toLowerCase();
     var strainData = {};
     strainData[name] = {rating: Number(strainRating), ratings: Number(numRatings), url: strainUrl};
     return strainData;
