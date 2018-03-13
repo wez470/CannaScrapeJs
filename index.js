@@ -21,7 +21,8 @@ exports.handler = (event, context, callback) => {
     });
 
     if (DOMAINS.indexOf(event.headers.origin) >= 0) {
-       memcached.get(escapedSearch, function (err, data) {
+        // memcached.get(escapedSearch, function (err, data) {
+            var err, data;
             if (typeof err !== 'undefined') {
                 console.log(err);
             }
@@ -39,15 +40,15 @@ exports.handler = (event, context, callback) => {
                 scrape(escapedSearch).then(function (response) {
                     console.log("Scraped response", response);
                     var stringifiedResponse = JSON.stringify(response);
-                   memcached.set(escapedSearch, stringifiedResponse, 3600 * 48, function (err) {
+                    // memcached.set(escapedSearch, stringifiedResponse, 3600 * 48, function (err) {
                         if (typeof err !== 'undefined') {
                             console.log(err);
                         }
                         done(null, stringifiedResponse, event.headers.origin);
-                   });
+                    // });
                 });
             }
-       });
+        // });
     }
     else {
         done({message: 'No access for domain'}, null, '');
@@ -88,11 +89,9 @@ var scrapeLeafly = function(response, escapedSearch) {
     $('li .padding-rowItem a').each(function (i, elem) {
         urls.push('https://www.leafly.com' + $(this).attr('href').trim());
     });
-    for (var url of urls) {
-        var splitUrl = url.split('/');
-        var name = splitUrl[splitUrl.length - 1].replace(/-/g, ' ');
-        names.push(name);
-    }
+    $('li .padding-rowItem a span').each(function (i, elem) {
+        names.push($(this).text().trim().toLowerCase());
+    });
     $('li .padding-rowItem .color--light').each(function (i, elem) {
         numRatingsList.push(Number($(this).text().trim().substr(1).split(' ')[0]));
     });
