@@ -3,6 +3,6 @@ module.exports = {
         origin: 'https://weed-exchange.firebaseapp.com'
     },
     queryStringParameters: {
-        strain: 'test'
+        strain: 'jesse\'s girl'
     }
 };

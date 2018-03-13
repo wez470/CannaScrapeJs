@@ -1,14 +1,15 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 const Memcached = require('memcached-elasticache');
-const memcached = new Memcached('metachronicmemcached.osck8f.cfg.use1.cache.amazonaws.com:11211');
+const memcached = new Memcached('meta-chronic.osck8f.cfg.use1.cache.amazonaws.com:11211');
 
 var DOMAINS = ['https://meta-chronic.com', 'https://weed-exchange.firebaseapp.com']
 
 exports.handler = (event, context, callback) => {
     console.log(event);
     context.callbackWaitsForEmptyEventLoop = false;
-    var escapedSearch = event.queryStringParameters.strain.replace(/ /g, '+');
+    var escapedSearch = escape(event.queryStringParameters.strain);
+    console.log("Escaped search", escapedSearch);
     
     const done = (err, res, origin) => callback(null, {
         statusCode: err ? '400' : '200',
@@ -20,26 +21,34 @@ exports.handler = (event, context, callback) => {
     });
 
     if (DOMAINS.indexOf(event.headers.origin) >= 0) {
-        memcached.get(escapedSearch, function (err, data) {
+       // memcached.get(escapedSearch, function (err, data) {
+            var err, data;
             if (typeof err !== 'undefined') {
                 console.log(err);
             }
 
+            console.log("Cached data", data);
             if (typeof data !== 'undefined') {
-                done(null, data, event.headers.origin)
+                console.log("Serving cached data");
+                done(null, data, event.headers.origin);
             }
 
-            scrape(escapedSearch).then(function (response) {
-                var stringifiedResponse = JSON.stringify(response);
-                memcached.set(escapedSearch, stringifiedResponse, 3600 * 48, function (err) {
-                    if (typeof err !== 'undefined') {
-                        console.log(err);
-                    }
-                    done(null, stringifiedResponse, event.headers.origin);
+            // Only scrape if we need to. This check is necessary because execution can continue
+            // when a container unfreezes / after calling the callback function.
+            if (typeof data === 'undefined') {
+                console.log("Scraping");
+                scrape(escapedSearch).then(function (response) {
+                    console.log("Scraped response", response);
+                    var stringifiedResponse = JSON.stringify(response);
+                 //   memcached.set(escapedSearch, stringifiedResponse, 3600 * 48, function (err) {
+                        if (typeof err !== 'undefined') {
+                            console.log(err);
+                        }
+                        done(null, stringifiedResponse, event.headers.origin);
+                 //   });
                 });
-                done(null, stringifiedResponse, event.headers.origin);
-            });
-        });
+            }
+     //   });
     }
     else {
         done({message: 'No access for domain'}, null, '');
@@ -93,9 +102,10 @@ var scrapeLeafly = function(response, escapedSearch) {
     });
 
     var strainData = {};
+    var unescapedSearch = unescape(escapedSearch).replace(/\'s/g, '');
     for (var i = 0; i < names.length; i++) {
         var validStrain = true;
-        for (var term of escapedSearch.split('+')) {
+        for (var term of unescapedSearch.split(' ')) {
             if (!names[i].includes(term)) {
                 validStrain = false;
                 break;
@@ -115,8 +125,9 @@ var scrapeAllbud = function(response, escapedSearch) {
     $('#search-results').find('.object-title a').each(function (index, element) {
         strainUrls.push($(element).attr('href'));
     });
+    var unescapedSearch = unescape(escapedSearch).replace(/\'s/g, '');
     strainUrls = strainUrls.filter(function (url) {
-        for (var term of escapedSearch.split('+')) {
+        for (var term of unescapedSearch.split(' ')) {
             if (!url.includes(term)) {
                 return false;
             }
