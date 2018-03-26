@@ -4,7 +4,7 @@
   "description": "Scraping Cannabis Sites",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "author": "Weston Carlson",
   "license": "ISC",
@@ -12,5 +12,9 @@
     "axios": "^0.18.0",
     "cheerio": "^1.0.0-rc.2",
     "memcached-elasticache": "^1.1.1"
+  },
+  "devDependencies": {
+    "jest": "^22.4.3",
+    "rewire": "^3.0.2"
   }
 }
