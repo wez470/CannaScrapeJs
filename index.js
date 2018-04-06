@@ -29,6 +29,7 @@ exports.handler = (event, context, callback) => {
             console.log("Cached data", data);
             if (typeof data !== 'undefined') {
                 console.log("Serving cached data");
+                updateLatestSearches(escapedSearch);
                 done(null, data, event.headers.origin);
             }
 
@@ -43,6 +44,7 @@ exports.handler = (event, context, callback) => {
                         if (typeof err !== 'undefined') {
                             console.log(err);
                         }
+                        updateLatestSearches(escapedSearch);
                         done(null, stringifiedResponse, event.headers.origin);
                     });
                 });
@@ -193,3 +195,24 @@ var getResponseData = function(leaflyRevs, allbudRevs) {
     }
     return revs;
 };
+
+var updateLatestSearches = (escapedSearch) => {
+    memcached.get('latestSearches', function (err, data) {
+        if (typeof err !== 'undefined') {
+            console.log(err);
+            return [];
+        }
+
+        if (typeof data !== 'undefined') {
+            latestSearches = JSON.parse(latestSearches);
+            console.log("Current latest searches", latestSearches);
+            latestSearches.push(unescape(escapedSearch));
+            if (latestSearches.length > 10) {
+                latestSearches = latestSearches.slice(latestSearches.length - 10);
+            }
+            
+            memcached.set(latestSearches, JSON.stringify(latestSearches), 3600 * 24 * 30, function (err) {
+            });
+        }
+    });
+}
