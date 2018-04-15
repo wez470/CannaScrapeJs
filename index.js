@@ -29,8 +29,15 @@ exports.handler = (event, context, callback) => {
             console.log("Cached data", data);
             if (typeof data !== 'undefined') {
                 console.log("Serving cached data");
-                updateLatestSearches(escapedSearch);
-                done(null, data, event.headers.origin);
+                if (isEmpty(JSON.parse(data))) {
+                    done(null, data, event.headers.origin);
+                }
+                else {
+                    updateLatestSearches(escapedSearch, () => {
+                        done(null, data, event.headers.origin);
+                    });  
+                }
+
             }
 
             // Only scrape if we need to. This check is necessary because execution can continue
@@ -44,8 +51,14 @@ exports.handler = (event, context, callback) => {
                         if (typeof err !== 'undefined') {
                             console.log(err);
                         }
-                        updateLatestSearches(escapedSearch);
-                        done(null, stringifiedResponse, event.headers.origin);
+                        if (isEmpty(response)) {
+                            done(null, stringifiedResponse, event.headers.origin);
+                        }
+                        else {
+                            updateLatestSearches(escapedSearch, () => {
+                                done(null, stringifiedResponse, event.headers.origin);
+                            });  
+                        }
                     });
                 });
             }
@@ -55,6 +68,10 @@ exports.handler = (event, context, callback) => {
         done({message: 'No access for domain'}, null, '');
     }
 };
+
+var isEmpty = (obj) => {
+    return Object.keys(obj).length === 0 && obj.constructor === Object
+}
 
 var scrape = function(escapedSearch) {
     var promises = [];
@@ -196,23 +213,35 @@ var getResponseData = function(leaflyRevs, allbudRevs) {
     return revs;
 };
 
-var updateLatestSearches = (escapedSearch) => {
+var updateLatestSearches = (escapedSearch, callback) => {
     memcached.get('latestSearches', function (err, data) {
         if (typeof err !== 'undefined') {
             console.log(err);
             return [];
         }
 
+        let latestSearches = []
         if (typeof data !== 'undefined') {
-            latestSearches = JSON.parse(latestSearches);
-            console.log("Current latest searches", latestSearches);
-            latestSearches.push(unescape(escapedSearch));
+            latestSearches = JSON.parse(data);
+        }
+            
+        console.log("Current latest searches", latestSearches);
+        let unescapedSearch = unescape(escapedSearch)
+        if (latestSearches.indexOf(unescapedSearch) >= 0) {
+            callback();
+        }
+        else {
+            latestSearches.unshift(unescapedSearch);
             if (latestSearches.length > 10) {
-                latestSearches = latestSearches.slice(latestSearches.length - 10);
+                latestSearches.splice(10 - latestSearches.length);
             }
             
-            memcached.set(latestSearches, JSON.stringify(latestSearches), 3600 * 24 * 30, function (err) {
-            });
+            memcached.set('latestSearches', JSON.stringify(latestSearches), 3600 * 24 * 30, function (err) {
+                if (typeof err !== 'undefined') {
+                    console.log(err);
+                }
+                callback();
+            });    
         }
     });
 }
