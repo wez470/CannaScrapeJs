@@ -112,11 +112,11 @@ var scrapeLeafly = function(response, escapedSearch) {
 
         names.push($(this).children('.name').text().trim().toLowerCase());
 
-        reviewCountStr = $(this).children('.container').children('.rating-section').children('.review-count').text().trim();
+        var reviewCountStr = $(this).children('.container').children('.rating-section').children('.review-count').text().trim();
         numRatingsList.push(Number(reviewCountStr.slice(1, -1)));
 
 
-        ratingStr = $(this).children('.container').children('.rating-section').children('.rating').text().trim();
+        var ratingStr = $(this).children('.container').children('.rating-section').children('.rating').text().trim();
         ratingList.push(Number(ratingStr));
     })
 
