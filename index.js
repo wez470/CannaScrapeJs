@@ -104,18 +104,21 @@ var scrapeLeafly = function(response, escapedSearch) {
     var ratingList = [];
     var numRatingsList = [];
     var urls = [];
-    $('li .padding-rowItem a').each(function (i, elem) {
-        urls.push('https://www.leafly.com' + $(this).attr('href').trim());
-    });
-    $('li .padding-rowItem a span').each(function (i, elem) {
-        names.push($(this).text().trim().toLowerCase());
-    });
-    $('li .padding-rowItem .color--light').each(function (i, elem) {
-        numRatingsList.push(Number($(this).text().trim().substr(1).split(' ')[0]));
-    });
-    $('li .padding-rowItem img').each(function (i, elem) {
-        ratingList.push(Number($(this).attr('src').split('/')[2]));
-    });
+
+    $('.results-section .result-container a').filter(function (i, elem) {
+        return $(this).children('.type').text() === 'strain'
+    }).each(function (i, elem) {
+        urls.push($(this).attr('href'));
+
+        names.push($(this).children('.name').text().trim().toLowerCase());
+
+        reviewCountStr = $(this).children('.container').children('.rating-section').children('.review-count').text().trim();
+        numRatingsList.push(Number(reviewCountStr.slice(1, -1)));
+
+
+        ratingStr = $(this).children('.container').children('.rating-section').children('.rating').text().trim();
+        ratingList.push(Number(ratingStr));
+    })
 
     var strainData = {};
     var unescapedSearch = unescape(escapedSearch).replace(/\'s/g, '');
